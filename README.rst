@@ -79,7 +79,7 @@ Documentation
 =============
 
 
-https://teaspoon.readthedocs.io/
+https://tea_spoon.readthedocs.io/
 
 
 Development

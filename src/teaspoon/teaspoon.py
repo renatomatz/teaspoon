@@ -1,6 +1,9 @@
 """Define _TSP Models
 
-Time Series Predictions (TSP).
+Time Series Predictions (TSPs) are attempt to predict what will happen based 
+on what has happened before. While there are a plethora of ways to do this, 
+the teaspoon module foucsses on using the last few observations to predict 
+the next and mechanisms to combine several of these predictions.
 """
 
 import multiprocessing
@@ -10,11 +13,14 @@ import numpy as np
 
 
 def ts_to_labels(_ts, _n, col=None):
-    """
+    """Convert a time series iterable into a set of features and labels ready
+    for training.
+
     Args:
-        _ts ():
-        _n ():
-        col ():
+        _ts (array-like): time series to be used for training.
+        _n (int): number of step features for each label.
+        col (any): column identifier for dataframe time series, in case only
+            a subsection of it will be used for training.
     """
     _ts = _ts if isinstance(_ts, pd.DataFrame) \
         else pd.DataFrame(_ts, columns="x")
@@ -28,17 +34,22 @@ def ts_to_labels(_ts, _n, col=None):
 
 
 def append_window(_w, _x, _y, _n, col=None):
-    """
+    """Helper function to append the features and labels from a time series
+    rolling window into a feature and label array.
+
     Args:
-        _w ():
-        _x ():
-        _y ():
-        _n ():
-        col ():
+        _w (pd.DataFrame or pd.Series): time series data window element of
+            the .rolling(_n+1) method.
+        _x (list): feature list to append features to.
+        _y (list): feature list to append features to.
+        _n (int): number of step features for each label.
+        col (any): column identifier for dataframe time series, in case only
+            a subsection of it will be used for training.
     """
     _x.append(np.array(_w.iloc[:_n]))
     _y.append(np.array(_w.iloc[_n]) if col is None
               else np.array(_w.iloc[_n][col]))
+
     return 1
 
 
@@ -48,6 +59,7 @@ class _TSP:
 
     def fit(self, _ts):
         """
+
         Args:
             _ts ():
         """
@@ -55,6 +67,7 @@ class _TSP:
 
     def predict(self, _ts, start=None, horizon=1):
         """
+        
         Args:
             _ts ():
             start ():
@@ -86,12 +99,14 @@ class _TSP:
 
 class UTSP(_TSP):
     """
+
     Attributes:
         _n ():
     """
 
     def __init__(self, n, model=None):
         """
+
         Args:
             n ():
             model ():
@@ -145,6 +160,7 @@ class UTSP(_TSP):
 
 class MTSP(_TSP):
     """
+
     Attributes:
         _col ():
         _n ():
@@ -160,6 +176,7 @@ class MTSP(_TSP):
                  submodels=None,
                  n_processes=1):
         """
+
         Args:
             col ():
             n ():
