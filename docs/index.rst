@@ -7,6 +7,7 @@ Contents
 
    readme
    installation
+   teaspoon
    usage
    reference/index
    contributing
@@ -19,4 +20,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

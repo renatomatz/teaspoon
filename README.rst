@@ -1,4 +1,4 @@
-..image:: docs/media/logo.png
+.. image:: docs/media/logo.png
 
 ========
 Overview
