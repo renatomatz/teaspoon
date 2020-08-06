@@ -1,3 +1,5 @@
+..image:: docs/media/logo.png
+
 ========
 Overview
 ========

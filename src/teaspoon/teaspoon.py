@@ -96,12 +96,12 @@ class SimpleModelWrapper:
         self._predict_attr = predict_attr
 
     def fit(self, features, labels, *args, **kwargs):
-        """
+        """Fit model(s)
 
         Args:
-            features ():
-            labels ():
-            *args, **kwargs:
+            features (array or matrix like): features used for fitting
+            labels (array or matrix like): labels used for fitting
+            *args, **kwargs: arguments used for fitting
         """
         return self._model.__getattribute__(self._fit_attr)(
             features,
@@ -111,11 +111,11 @@ class SimpleModelWrapper:
         )
 
     def predict(self, features, *args, **kwargs):
-        """
+        """Predict value(s) 
 
         Args:
-            features ():
-            *args, **kwargs:
+            features (array or matrix like): features used for fitting
+            *args, **kwargs: arguments used for fitting
         """
         return self._model.__getattribute__(self._predict_attr)(
             features,
@@ -195,7 +195,7 @@ class UTSP(_TSP):
         _n (int): how many past steps considered for predicting the next.
     """
 
-    def __init__(self, n, model=None):
+    def __init__(self, model, n):
         """Initialize model parameters.
 
         Args:
@@ -256,38 +256,52 @@ class UTSP(_TSP):
 
 
 class MTSP(_TSP):
-    """
+    """Multivariate Time Series Prediction models.
+
+    These models are highly flexible ways of predicting future values based 
+    on a 2D aray of last steps over multiple features. While this feature is
+    commonly used to look a single step ahead, users can specify more 
+    granularly how each step variable on a step ahead should be predicted.
 
     Attributes:
-        _col ():
-        _n ():
-        _submodels ():
-        _n_processes (int):
-        _all_cols ():
+        _n (int): number of steps before used to predict a step ahead.
+        _col (str): column this model tried to predict.
+        _submodels (dict): dictionary of submodels used to predict a column's
+            value based on previous steps. These must be either USTP
+            models for single columns or MTSP for multiple columns. This 
+            dictionary should have a tuple (multiple columns) or string 
+            (single column) as keys and _TSP instances as values. 
+        _min_cols (list): all columns specified by the initialization.
+        n_jobs (int): number of jobs to run for fiting and predicting.
     """
 
     def __init__(self,
-                 col,
+                 model,
                  n,
-                 model=None,
+                 col,
                  submodels=None,
-                 n_processes=1):
+                 n_jobs=1):
         """
 
         Args:
-            col ():
-            n ():
-            model ();
-            submodels ():
-            n_processes (int):
+            n (int): number of steps before used to predict a step ahead.
+            col (str): column this model tried to predict.
+            submodels (dict): dictionary of submodels used to predict any 
+                dataframe varible in a custom way. These must be either USTP
+                models for single columns or MTSP for multiple columns. This 
+                dictionary should have a tuple (multiple columns) or string 
+                (single column) as keys and _TSP instances as values. This 
+                variable will be filled upon fitting to account for 
+                unspecified columns.
+            n_jobs (int): number of jobs to run for fiting and predicting.
         """
 
         self.model = model
 
-        all_cols = set()
+        min_cols = set()
 
         self._col = col
-        all_cols.add(self._col)
+        min_cols.add(self._col)
 
         self._n = n
 
@@ -305,12 +319,12 @@ class MTSP(_TSP):
 
                 col1, col2 = col
 
-                all_cols.add(col1)
+                min_cols.add(col1)
 
                 if isinstance(col2, (tuple, list)):
-                    all_cols.update(col2)
+                    min_cols.update(col2)
                 else:
-                    all_cols.add(col2)
+                    min_cols.add(col2)
 
             else:
 
@@ -319,14 +333,11 @@ class MTSP(_TSP):
                         must be of type {UTSP} not {type(tsp)} if \
                         predicting based on multiple variables")
 
-                all_cols.add(col)
+                min_cols.add(col)
 
-        self._submodels = submodels \
-            if submodels is not None else dict()
+        self._min_cols = list(min_cols)
 
-        self._all_cols = list(all_cols)
-
-        self.n_processes = n_processes
+        self.n_jobs = n_jobs
 
     def fit(self, _ts, *args, **kwargs):
 
@@ -335,9 +346,9 @@ class MTSP(_TSP):
                 not {type(_ts)}")
 
         if not all([col_name in _ts.columns
-                    for col_name in self._all_cols]):
+                    for col_name in self._min_cols]):
             raise ValueError(f"time series should have the following columns \
-                    specified upon model initialization: {self._all_cols}")
+                    specified upon model initialization: {self._min_cols}")
 
         _x, _y = ts_to_labels(_ts, self._n)
 
@@ -346,7 +357,7 @@ class MTSP(_TSP):
                        *args,
                        **kwargs)
 
-        with multiprocessing.Pool(processes=self.n_processes) as pool:
+        with multiprocessing.Pool(processes=self.n_jobs) as pool:
             results = [pool.apply_async(tsp.fit, (_ts[col_name],))
                        for col_name, tsp in self._submodels]
 
@@ -363,9 +374,9 @@ class MTSP(_TSP):
             ValueError(f"input musut have at least {self._n} items.")
 
         if not all([col_name in _ts.columns
-                    for col_name in self._all_cols]):
+                    for col_name in self._min_cols]):
             raise ValueError(f"time series should have the following columns \
-                    specified upon model initialization: {self._all_cols}")
+                    specified upon model initialization: {self._min_cols}")
 
         ret_x, ret_pred = [], []
 
@@ -377,8 +388,18 @@ class MTSP(_TSP):
             ValueError(f"specify a start with more than {self._n} items \
                 ahead of it.")
 
+        # we will append to the time series, so we create a copy now.
+        # copy will only have the necessary number of steps behind to 
+        # save memory.
+        _ts = _ts.copy().iloc[start:
+                              -max([sm._n for sm in self._submodels.values()]
+                                   + [self._n])]
+
         curr_x = _ts.iloc[start:start+self._n].values
         col_names_idx = {col: i for i, col in enumerate(_ts.columns)}
+
+        pred_cols = col_names_idx[self._col] if isinstance(self._col, str) \
+            else [col_names_idx[c] for c in self._col]
 
         for _ in range(horizon):
             curr_pred = self.model.predict(curr_x.reshape(1, -1),
@@ -389,9 +410,7 @@ class MTSP(_TSP):
 
             new_step = curr_x[-1]
 
-            # we will append to the time series, so we create a copy now.
-            _ts = _ts.copy()
-            new_step[col_names_idx[self._col]] = curr_pred
+            new_step[pred_cols] = curr_pred
 
             for col_name, tsp in self._submodels:
                 # TODO: parallelize
@@ -408,16 +427,15 @@ class MTSP(_TSP):
         return np.array(ret_x), np.array(ret_pred)
 
     @property
-    def n_processes(self):
-        """Get n_processes attribute"""
-        return self._n_processes
+    def n_jobs(self):
+        """Get n_jobs attribute"""
 
-    @n_processes.setter
-    def n_processes(self, _n):
-        """Set n_processes attribute ensuring it new value is an integer"""
+    @n_jobs.setter
+    def n_jobs(self, _n):
+        """Set n_jobs attribute ensuring it new value is an integer"""
 
         if not isinstance(_n, int):
-            raise TypeError(f"attribute n_processes must be of type {int} \
+            raise TypeError(f"attribute n_jobs must be of type {int} \
                 not {type(_n)}")
 
-        self._n_processes = _n
+        self._n_jobs = _n
