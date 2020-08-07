@@ -25,6 +25,8 @@ author = 'Renato Zimmermann'
 copyright = '{0}, {1}'.format(year, author)
 version = release = '0.0.0'
 
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
 pygments_style = 'trac'
 templates_path = ['.']
 extlinks = {
