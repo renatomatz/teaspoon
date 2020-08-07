@@ -1,0 +1,258 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>teaspoon package &#8212; Teaspoon 0.0.0 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Usage" href="usage.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="usage.html" title="Usage"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Teaspoon-0.0.0</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="teaspoon-package">
+<h1>teaspoon package<a class="headerlink" href="#teaspoon-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-teaspoon">
+<span id="teaspoon-module"></span><h2>teaspoon module<a class="headerlink" href="#module-teaspoon" title="Permalink to this headline">¶</a></h2>
+<p>Initialize teaspoon module</p>
+<dl class="function">
+<dt id="teaspoon.ts_to_labels">
+<code class="sig-prename descclassname">teaspoon.</code><code class="sig-name descname">ts_to_labels</code><span class="sig-paren">(</span><em class="sig-param">_ts</em>, <em class="sig-param">_n</em>, <em class="sig-param">col=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#ts_to_labels"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.ts_to_labels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a time series iterable into a set of features and labels ready
+for training.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>_ts</strong> (<em>array-like</em>) – time series to be used for training.</p></li>
+<li><p><strong>_n</strong> (<em>int</em>) – number of step features for each label.</p></li>
+<li><p><strong>col</strong> (<em>any</em>) – column identifier for dataframe time series, in case only
+a subsection of it will be used for training.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="teaspoon.append_window">
+<code class="sig-prename descclassname">teaspoon.</code><code class="sig-name descname">append_window</code><span class="sig-paren">(</span><em class="sig-param">_w</em>, <em class="sig-param">_x</em>, <em class="sig-param">_y</em>, <em class="sig-param">_n</em>, <em class="sig-param">col=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#append_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.append_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Helper function to append the features and labels from a time series
+rolling window into a feature and label array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>_w</strong> (<em>pd.DataFrame or pd.Series</em>) – time series data window element of
+the .rolling(_n+1) method.</p></li>
+<li><p><strong>_x</strong> (<em>list</em>) – feature list to append features to.</p></li>
+<li><p><strong>_y</strong> (<em>list</em>) – feature list to append features to.</p></li>
+<li><p><strong>_n</strong> (<em>int</em>) – number of step features for each label.</p></li>
+<li><p><strong>col</strong> (<em>any</em>) – column identifier for dataframe time series, in case only
+a subsection of it will be used for training.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="class">
+<dt id="teaspoon.UTSP">
+<em class="property">class </em><code class="sig-prename descclassname">teaspoon.</code><code class="sig-name descname">UTSP</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">n</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#UTSP"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.UTSP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">teaspoon.teaspoon._TSP</span></code></p>
+<p>Univarate Time Series Prediction model.</p>
+<p>This is used to predict the next step given a one-dimentional array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><p><strong>_n</strong> (<em>int</em>) – how many past steps considered for predicting the next.</p>
+</dd>
+</dl>
+<dl class="method">
+<dt id="teaspoon.UTSP.fit">
+<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param">_ts</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#UTSP.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.UTSP.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit model from data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>_ts</strong> (<em>array-like</em>) – time series data used to fit the model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="teaspoon.UTSP.predict">
+<code class="sig-name descname">predict</code><span class="sig-paren">(</span><em class="sig-param">_ts</em>, <em class="sig-param">*args</em>, <em class="sig-param">start=None</em>, <em class="sig-param">horizon=1</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#UTSP.predict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.UTSP.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predict future steps from past ones.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>_ts</strong> (<em>array-like</em>) – time series to get past steps from.</p></li>
+<li><p><strong>start</strong> (<em>any</em>) – first step to predict
+from.</p></li>
+<li><p><strong>horizon</strong> (<em>int</em>) – how many steps ahead to predict.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="teaspoon.MTSP">
+<em class="property">class </em><code class="sig-prename descclassname">teaspoon.</code><code class="sig-name descname">MTSP</code><span class="sig-paren">(</span><em class="sig-param">model</em>, <em class="sig-param">n</em>, <em class="sig-param">col</em>, <em class="sig-param">submodels=None</em>, <em class="sig-param">n_jobs=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#MTSP"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.MTSP" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">teaspoon.teaspoon._TSP</span></code></p>
+<p>Multivariate Time Series Prediction models.</p>
+<p>These models are highly flexible ways of predicting future values based
+on a 2D aray of last steps over multiple features. While this feature is
+commonly used to look a single step ahead, users can specify more
+granularly how each step variable on a step ahead should be predicted.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>_n</strong> (<em>int</em>) – number of steps before used to predict a step ahead.</p></li>
+<li><p><strong>_col</strong> (<em>str</em>) – column this model tried to predict.</p></li>
+<li><p><strong>_submodels</strong> (<em>dict</em>) – dictionary of submodels used to predict a column’s
+value based on previous steps. These must be either USTP
+models for single columns or MTSP for multiple columns. This
+dictionary should have a tuple (multiple columns) or string
+(single column) as keys and _TSP instances as values.</p></li>
+<li><p><strong>_min_cols</strong> (<em>list</em>) – all columns specified by the initialization.</p></li>
+<li><p><a class="reference internal" href="#teaspoon.MTSP.n_jobs" title="teaspoon.MTSP.n_jobs"><strong>n_jobs</strong></a> (<em>int</em>) – number of jobs to run for fiting and predicting.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="method">
+<dt id="teaspoon.MTSP.fit">
+<code class="sig-name descname">fit</code><span class="sig-paren">(</span><em class="sig-param">_ts</em>, <em class="sig-param">*args</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#MTSP.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.MTSP.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fit model from data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>_ts</strong> (<em>array-like</em>) – time series data used to fit the model.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="teaspoon.MTSP.n_jobs">
+<em class="property">property </em><code class="sig-name descname">n_jobs</code><a class="headerlink" href="#teaspoon.MTSP.n_jobs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get n_jobs attribute</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="teaspoon.MTSP.predict">
+<code class="sig-name descname">predict</code><span class="sig-paren">(</span><em class="sig-param">_ts</em>, <em class="sig-param">*args</em>, <em class="sig-param">start=None</em>, <em class="sig-param">horizon=1</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/teaspoon/teaspoon.html#MTSP.predict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#teaspoon.MTSP.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Predict future steps from past ones.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>_ts</strong> (<em>array-like</em>) – time series to get past steps from.</p></li>
+<li><p><strong>start</strong> (<em>any</em>) – first step to predict
+from.</p></li>
+<li><p><strong>horizon</strong> (<em>int</em>) – how many steps ahead to predict.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="index.html">
+              <img class="logo" src="_static/logo.png" alt="Logo"/>
+            </a></p>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+<h3><a href="index.html">Table of Contents</a></h3>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">teaspoon package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-teaspoon">teaspoon module</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/teaspoon.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="usage.html" title="Usage"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="installation.html" title="Installation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Teaspoon-0.0.0</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Renato Zimmermann.
+      Last updated on Aug 06, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.4.0.
+    </div>
+  </body>
+</html>

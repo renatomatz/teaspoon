@@ -1,0 +1,535 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>teaspoon.teaspoon &#8212; Teaspoon 0.0.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Teaspoon-0.0.0</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for teaspoon.teaspoon</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Define _TSP Models</span>
+
+<span class="sd">Time Series Predictions (TSPs) are attempt to predict what will happen based</span>
+<span class="sd">on what has happened before. While there are a plethora of ways to do this,</span>
+<span class="sd">the teaspoon module foucsses on using the last few observations to predict</span>
+<span class="sd">the next and mechanisms to combine several of these predictions.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+
+<div class="viewcode-block" id="ts_to_labels"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.ts_to_labels">[docs]</a><span class="k">def</span> <span class="nf">ts_to_labels</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="n">_n</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Convert a time series iterable into a set of features and labels ready</span>
+<span class="sd">    for training.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        _ts (array-like): time series to be used for training.</span>
+<span class="sd">        _n (int): number of step features for each label.</span>
+<span class="sd">        col (any): column identifier for dataframe time series, in case only</span>
+<span class="sd">            a subsection of it will be used for training.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_ts</span> <span class="o">=</span> <span class="n">_ts</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> \
+        <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+
+    <span class="n">_x</span><span class="p">,</span> <span class="n">_y</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(),</span> <span class="nb">list</span><span class="p">()</span>
+    <span class="n">_ts</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">_n</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">append_window</span><span class="p">,</span>
+                            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">_x</span><span class="p">,</span> <span class="n">_y</span><span class="p">,</span> <span class="n">_n</span><span class="p">),</span>
+                            <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;col&quot;</span><span class="p">:</span> <span class="n">col</span><span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="append_window"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.append_window">[docs]</a><span class="k">def</span> <span class="nf">append_window</span><span class="p">(</span><span class="n">_w</span><span class="p">,</span> <span class="n">_x</span><span class="p">,</span> <span class="n">_y</span><span class="p">,</span> <span class="n">_n</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Helper function to append the features and labels from a time series</span>
+<span class="sd">    rolling window into a feature and label array.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        _w (pd.DataFrame or pd.Series): time series data window element of</span>
+<span class="sd">            the .rolling(_n+1) method.</span>
+<span class="sd">        _x (list): feature list to append features to.</span>
+<span class="sd">        _y (list): feature list to append features to.</span>
+<span class="sd">        _n (int): number of step features for each label.</span>
+<span class="sd">        col (any): column identifier for dataframe time series, in case only</span>
+<span class="sd">            a subsection of it will be used for training.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_w</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">_n</span><span class="p">]))</span>
+    <span class="n">_y</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_w</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">_n</span><span class="p">])</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">is</span> <span class="kc">None</span>
+              <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">_w</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">_n</span><span class="p">][</span><span class="n">col</span><span class="p">]))</span>
+
+    <span class="k">return</span> <span class="mi">1</span></div>
+
+
+<span class="k">class</span> <span class="nc">SimpleModelWrapper</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Wrapper object used to &quot;translate&quot; a model&#39;s core functionaliy into</span>
+<span class="sd">    one that can be used in _TSP instances.</span>
+
+<span class="sd">    This wrapper by default simply calls an alternative function as specifed</span>
+<span class="sd">    upon initialization, with assumed positional arguments.</span>
+
+<span class="sd">    This class can be inheritted to incorporate more complex mechanics of</span>
+<span class="sd">    whichever model is being used.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        _model (any): model with fit and predict capabilities.</span>
+<span class="sd">        _fit_attr (str): model attribute used for fitting.</span>
+<span class="sd">        _predict_attr (str): model attribute used for predicting values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">fit_attr</span><span class="o">=</span><span class="s2">&quot;fit&quot;</span><span class="p">,</span> <span class="n">predict_attr</span><span class="o">=</span><span class="s2">&quot;predict&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize object instance.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (any): model with fit and predict capabilities.</span>
+<span class="sd">            fit_attr (str), default &quot;fit&quot;: model attribute used for fitting.</span>
+<span class="sd">            predict_attr (str), default &quot;predict&quot;: model attribute used for</span>
+<span class="sd">                predicting values.</span>
+
+<span class="sd">        Raise:</span>
+<span class="sd">            TypeError: if fit_attr or predict_attr are not strings.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fit_attr</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;fit_attr parameter must be </span><span class="si">{str}</span><span class="s2">, </span><span class="se">\</span>
+<span class="s2">                not {type(fit_attr)}&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_attr</span> <span class="o">=</span> <span class="n">fit_attr</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">predict_attr</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;predict_attr parameter must be </span><span class="si">{str}</span><span class="s2">, </span><span class="se">\</span>
+<span class="s2">                not {type(predict_attr)}&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_predict_attr</span> <span class="o">=</span> <span class="n">predict_attr</span>
+
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit model(s)</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            features (array or matrix like): features used for fitting</span>
+<span class="sd">            labels (array or matrix like): labels used for fitting</span>
+<span class="sd">            *args, **kwargs: arguments used for fitting</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_fit_attr</span><span class="p">)(</span>
+            <span class="n">features</span><span class="p">,</span>
+            <span class="n">labels</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">features</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Predict value(s) </span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            features (array or matrix like): features used for fitting</span>
+<span class="sd">            *args, **kwargs: arguments used for fitting</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_predict_attr</span><span class="p">)(</span>
+            <span class="n">features</span><span class="p">,</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
+        <span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_TSP</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Abstract Time Series Prediction class.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        _model (any with &quot;fit&quot; and &quot;predict&quot; parameter): model that takes in</span>
+<span class="sd">            past steps and predicts future ones.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_ts</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Fit model from data.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            _ts (array-like): time series data used to fit the model.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_ts</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Predict future steps from past ones.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            _ts (array-like): time series to get past steps from.</span>
+<span class="sd">            start (any), Optional, None by default: first step to predict</span>
+<span class="sd">                from.</span>
+<span class="sd">            horizon (int), 1 by default: how many steps ahead to predict.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define model fetching mechanism to ensure model must be set to</span>
+<span class="sd">        be accessed</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AttributeError: if model is not set.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;model attribute is not set&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span>
+
+    <span class="nd">@model</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_model</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define model setting mechanism to ensure model can be fit and</span>
+<span class="sd">        used for prediction.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            AttributeError: if model does not have a &quot;fit&quot; or &quot;predict&quot;</span>
+<span class="sd">                parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">new_model</span><span class="p">,</span> <span class="s2">&quot;fit&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;specified model must have a &#39;fit&#39; </span><span class="se">\</span>
+<span class="s2">                attribute&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">new_model</span><span class="p">,</span> <span class="s2">&quot;predict&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s2">&quot;specified model must have a &#39;predict&#39; </span><span class="se">\</span>
+<span class="s2">                attribute&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">new_model</span>
+
+
+<div class="viewcode-block" id="UTSP"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.UTSP">[docs]</a><span class="k">class</span> <span class="nc">UTSP</span><span class="p">(</span><span class="n">_TSP</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Univarate Time Series Prediction model.</span>
+
+<span class="sd">    This is used to predict the next step given a one-dimentional array.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        _n (int): how many past steps considered for predicting the next.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize model parameters.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n (int): how many past steps considered for predicting the next.</span>
+<span class="sd">            model (any): fittable model that takes in {n} one-dimentional</span>
+<span class="sd">                inputs and returns a single value for the predicted next</span>
+<span class="sd">                step.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n</span> <span class="o">=</span> <span class="n">n</span>
+
+<div class="viewcode-block" id="UTSP.fit"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.UTSP.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_ts</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;input time series must be a 1D array, not </span><span class="se">\</span>
+<span class="s2">                {len(_ts.shape)}D&quot;</span><span class="p">)</span>
+
+        <span class="n">_x</span><span class="p">,</span> <span class="n">_y</span> <span class="o">=</span> <span class="n">ts_to_labels</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">_x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_x</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">_x</span><span class="p">,</span>
+                       <span class="n">_y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                       <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                       <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="UTSP.predict"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.UTSP.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_ts</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;input time series must be a 1D array, not </span><span class="se">\</span>
+<span class="s2">                {len(_ts.shape)}D&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">:</span>
+            <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;input musut have at least </span><span class="si">{self._n}</span><span class="s2"> items.&quot;</span><span class="p">)</span>
+
+        <span class="n">ret_x</span><span class="p">,</span> <span class="n">ret_pred</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="n">curr_x</span><span class="p">,</span> <span class="n">curr_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">curr_x</span> <span class="o">=</span> <span class="n">_ts</span><span class="p">[:</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="p">[</span><span class="n">start</span><span class="p">:])</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">:</span>
+                <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;specify a start with more than </span><span class="si">{self._n}</span><span class="s2"> items </span><span class="se">\</span>
+<span class="s2">                    ahead of it.&quot;</span><span class="p">)</span>
+            <span class="n">curr_x</span> <span class="o">=</span> <span class="n">_ts</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">]</span>
+
+        <span class="n">curr_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">curr_x</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">horizon</span><span class="p">):</span>
+            <span class="n">curr_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">curr_x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)),</span>
+                                           <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                                           <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">ret_x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">curr_x</span><span class="p">)</span>
+            <span class="n">ret_pred</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">curr_pred</span><span class="p">)</span>
+            <span class="n">curr_x</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">curr_x</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">curr_x</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">curr_pred</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ret_x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ret_pred</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="MTSP"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.MTSP">[docs]</a><span class="k">class</span> <span class="nc">MTSP</span><span class="p">(</span><span class="n">_TSP</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Multivariate Time Series Prediction models.</span>
+
+<span class="sd">    These models are highly flexible ways of predicting future values based </span>
+<span class="sd">    on a 2D aray of last steps over multiple features. While this feature is</span>
+<span class="sd">    commonly used to look a single step ahead, users can specify more </span>
+<span class="sd">    granularly how each step variable on a step ahead should be predicted.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">        _n (int): number of steps before used to predict a step ahead.</span>
+<span class="sd">        _col (str): column this model tried to predict.</span>
+<span class="sd">        _submodels (dict): dictionary of submodels used to predict a column&#39;s</span>
+<span class="sd">            value based on previous steps. These must be either USTP</span>
+<span class="sd">            models for single columns or MTSP for multiple columns. This </span>
+<span class="sd">            dictionary should have a tuple (multiple columns) or string </span>
+<span class="sd">            (single column) as keys and _TSP instances as values. </span>
+<span class="sd">        _min_cols (list): all columns specified by the initialization.</span>
+<span class="sd">        n_jobs (int): number of jobs to run for fiting and predicting.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">model</span><span class="p">,</span>
+                 <span class="n">n</span><span class="p">,</span>
+                 <span class="n">col</span><span class="p">,</span>
+                 <span class="n">submodels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            n (int): number of steps before used to predict a step ahead.</span>
+<span class="sd">            col (str): column this model tried to predict.</span>
+<span class="sd">            submodels (dict): dictionary of submodels used to predict any </span>
+<span class="sd">                dataframe varible in a custom way. These must be either USTP</span>
+<span class="sd">                models for single columns or MTSP for multiple columns. This </span>
+<span class="sd">                dictionary should have a tuple (multiple columns) or string </span>
+<span class="sd">                (single column) as keys and _TSP instances as values. This </span>
+<span class="sd">                variable will be filled upon fitting to account for </span>
+<span class="sd">                unspecified columns.</span>
+<span class="sd">            n_jobs (int): number of jobs to run for fiting and predicting.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="n">min_cols</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_col</span> <span class="o">=</span> <span class="n">col</span>
+        <span class="n">min_cols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_col</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n</span> <span class="o">=</span> <span class="n">n</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">submodels</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;mutlistep_models parameter must be of type </span><span class="se">\</span>
+<span class="s2">                </span><span class="si">{dict}</span><span class="s2"> not {type(submodels)}&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">tsp</span> <span class="ow">in</span> <span class="n">submodels</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col_name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tsp</span><span class="p">,</span> <span class="n">MTSP</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;multistep model for column </span><span class="si">{col_name}</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                        must be of type </span><span class="si">{MTSP}</span><span class="s2"> not {type(tsp)} if </span><span class="se">\</span>
+<span class="s2">                        predicting based on single variable&quot;</span><span class="p">)</span>
+
+                <span class="n">col1</span><span class="p">,</span> <span class="n">col2</span> <span class="o">=</span> <span class="n">col</span>
+
+                <span class="n">min_cols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col1</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col2</span><span class="p">,</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">list</span><span class="p">)):</span>
+                    <span class="n">min_cols</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">col2</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">min_cols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col2</span><span class="p">)</span>
+
+            <span class="k">else</span><span class="p">:</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tsp</span><span class="p">,</span> <span class="n">UTSP</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;multistep model for column </span><span class="si">{col_name}</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                        must be of type </span><span class="si">{UTSP}</span><span class="s2"> not {type(tsp)} if </span><span class="se">\</span>
+<span class="s2">                        predicting based on multiple variables&quot;</span><span class="p">)</span>
+
+                <span class="n">min_cols</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_min_cols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">min_cols</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span> <span class="o">=</span> <span class="n">n_jobs</span>
+
+<div class="viewcode-block" id="MTSP.fit"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.MTSP.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_ts</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;argument _ts must be of type </span><span class="si">{pd.DataFrame}</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                not {type(_ts)}&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">col_name</span> <span class="ow">in</span> <span class="n">_ts</span><span class="o">.</span><span class="n">columns</span>
+                    <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_cols</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;time series should have the following columns </span><span class="se">\</span>
+<span class="s2">                    specified upon model initialization: </span><span class="si">{self._min_cols}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">_x</span><span class="p">,</span> <span class="n">_y</span> <span class="o">=</span> <span class="n">ts_to_labels</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">_x</span><span class="p">,</span>
+                       <span class="n">_y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+                       <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                       <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Pool</span><span class="p">(</span><span class="n">processes</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">)</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="n">pool</span><span class="o">.</span><span class="n">apply_async</span><span class="p">(</span><span class="n">tsp</span><span class="o">.</span><span class="n">fit</span><span class="p">,</span> <span class="p">(</span><span class="n">_ts</span><span class="p">[</span><span class="n">col_name</span><span class="p">],))</span>
+                       <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">tsp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submodels</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">res</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+                <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="MTSP.predict"><a class="viewcode-back" href="../../teaspoon.html#teaspoon.MTSP.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_ts</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_ts</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;argument _ts must be of type </span><span class="si">{pd.DataFrame}</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                not {type(_ts)}&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">:</span>
+            <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;input musut have at least </span><span class="si">{self._n}</span><span class="s2"> items.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">col_name</span> <span class="ow">in</span> <span class="n">_ts</span><span class="o">.</span><span class="n">columns</span>
+                    <span class="k">for</span> <span class="n">col_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_min_cols</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;time series should have the following columns </span><span class="se">\</span>
+<span class="s2">                    specified upon model initialization: </span><span class="si">{self._min_cols}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">ret_x</span><span class="p">,</span> <span class="n">ret_pred</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="n">curr_x</span><span class="p">,</span> <span class="n">curr_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">start</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">start</span><span class="p">:])</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">:</span>
+            <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;specify a start with more than </span><span class="si">{self._n}</span><span class="s2"> items </span><span class="se">\</span>
+<span class="s2">                ahead of it.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># we will append to the time series, so we create a copy now.</span>
+        <span class="c1"># copy will only have the necessary number of steps behind to </span>
+        <span class="c1"># save memory.</span>
+        <span class="n">_ts</span> <span class="o">=</span> <span class="n">_ts</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">start</span><span class="p">:</span>
+                              <span class="o">-</span><span class="nb">max</span><span class="p">([</span><span class="n">sm</span><span class="o">.</span><span class="n">_n</span> <span class="k">for</span> <span class="n">sm</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submodels</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+                                   <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">])]</span>
+
+        <span class="n">curr_x</span> <span class="o">=</span> <span class="n">_ts</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">col_names_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_ts</span><span class="o">.</span><span class="n">columns</span><span class="p">)}</span>
+
+        <span class="n">pred_cols</span> <span class="o">=</span> <span class="n">col_names_idx</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_col</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_col</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> \
+            <span class="k">else</span> <span class="p">[</span><span class="n">col_names_idx</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_col</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">horizon</span><span class="p">):</span>
+            <span class="n">curr_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">curr_x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                                           <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                                           <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">ret_x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">curr_x</span><span class="p">)</span>
+            <span class="n">ret_pred</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">curr_pred</span><span class="p">)</span>
+
+            <span class="n">new_step</span> <span class="o">=</span> <span class="n">curr_x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+            <span class="n">new_step</span><span class="p">[</span><span class="n">pred_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">curr_pred</span>
+
+            <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">tsp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submodels</span><span class="p">:</span>
+                <span class="c1"># TODO: parallelize</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">col_name</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
+                    <span class="n">col_name</span><span class="p">,</span> <span class="n">col_sl</span> <span class="o">=</span> <span class="n">col_name</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">col_sl</span> <span class="o">=</span> <span class="n">col_name</span>
+
+                <span class="n">new_step</span><span class="p">[</span><span class="n">col_names_idx</span><span class="p">[</span><span class="n">col_name</span><span class="p">]]</span> <span class="o">=</span> <span class="n">tsp</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">_ts</span><span class="p">[</span><span class="n">col_sl</span><span class="p">])</span>
+
+            <span class="n">curr_x</span><span class="p">[:</span><span class="bp">self</span><span class="o">.</span><span class="n">_n</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">curr_x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">curr_x</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">new_step</span>
+            <span class="n">_ts</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">_ts</span><span class="p">)]</span> <span class="o">=</span> <span class="n">new_step</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ret_x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ret_pred</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Get n_jobs attribute&quot;&quot;&quot;</span>
+
+    <span class="nd">@n_jobs</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">n_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_n</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Set n_jobs attribute ensuring it new value is an integer&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">_n</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;attribute n_jobs must be of type </span><span class="si">{int}</span><span class="s2"> </span><span class="se">\</span>
+<span class="s2">                not {type(_n)}&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_jobs</span> <span class="o">=</span> <span class="n">_n</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../index.html">
+              <img class="logo" src="../../_static/logo.png" alt="Logo"/>
+            </a></p>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+<h3><a href="../../index.html">Table of Contents</a></h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../readme.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../teaspoon.html">teaspoon package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributing.html">Contributing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">Teaspoon-0.0.0</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Renato Zimmermann.
+      Last updated on Aug 06, 2020.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.4.0.
+    </div>
+  </body>
+</html>
