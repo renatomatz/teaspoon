@@ -23,7 +23,7 @@ def ts_to_labels(_ts, _n, col=None):
             a subsection of it will be used for training.
     """
     _ts = _ts if isinstance(_ts, pd.DataFrame) \
-        else pd.DataFrame(_ts, columns="x")
+        else pd.DataFrame(_ts, columns=["x"])
 
     _x, _y = list(), list()
     _ts.rolling(_n+1).apply(append_window,
@@ -209,22 +209,29 @@ class UTSP(_TSP):
 
         self._n = n
 
-    def fit(self, _ts, *args, **kwargs):
+    def fit(self, _ts, *args, shuffle=True, **kwargs):
 
-        if len(_ts.shape) != 1:
+        if (len(_ts.shape) == 1 and _ts.shape[1] != 1) \
+                or (len(_ts.shape) >= 2):
+
             raise ValueError(f"input time series must be a 1D array, not \
                 {len(_ts.shape)}D")
 
         _x, _y = ts_to_labels(_ts, self._n)
+        _x = _x.reshape(-1, 1) if len(_x.shape) == 1 else _x
+        _y = _y.reshape(-1, 1)
 
-        self.model.fit(_x.reshape(-1, 1) if len(_x.shape) == 1 else _x,
-                       _y.reshape(-1, 1),
-                       *args,
-                       **kwargs)
+        if shuffle:
+            concat = np.concatenate((_x, _y), axis=1)
+            np.random.shuffle(concat)
+            _x, _y = np.split(concat, [self._n], axis=1)
+
+        self.model.fit(_x, _y, *args, **kwargs)
 
     def predict(self, _ts, *args, start=None, horizon=1, **kwargs):
 
-        if len(_ts.shape) != 1:
+        if (len(_ts.shape) == 1 and _ts.shape[1] != 1) \
+                or (len(_ts.shape) >= 2):
             raise ValueError(f"input time series must be a 1D array, not \
                 {len(_ts.shape)}D")
 
